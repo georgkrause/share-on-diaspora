@@ -74,6 +74,14 @@ function set_default() {
 function register_share_on_diaspora_css() {
     wp_register_style( 'share-on-diaspora', plugins_url( 'share-on-diaspora-css.php' , __FILE__ ) );
     wp_enqueue_style( 'share-on-diaspora' );
+
+//for testing only
+//    wp_register_style( 'color-picker-css', 'http://make.simplesharebuttons.com/colorpicker/mcColorPicker.css' );
+//    wp_enqueue_style( 'color-picker-css' );
+//    wp_register_script( 'color-picker-js', 'http://make.simplesharebuttons.com/colorpicker/mcColorPicker.js' );
+//    wp_enqueue_script( 'color-picker-js' );
+//end test block
+
 }
 
 function generate_button($preview, $use_own_image) {
@@ -88,7 +96,8 @@ function generate_button($preview, $use_own_image) {
     $options_array = get_option('share-on-diaspora-settings');
     if ( $use_own_image ) {
         //use own image
-        $button_box = "<div id='diaspora-button-ownimage-div''><img id='diaspora-button-ownimage-img' src='" . $options_array['image_file'] . "'></div>";
+        $button_box = "<div id='diaspora-button-ownimage-div'><img id='diaspora-button-ownimage-img' src='" . $options_array['image_file'] . "'></div>";
+
     } else {
         //use standard image
         switch ($options_array['button_size']) {
@@ -117,7 +126,7 @@ function generate_button($preview, $use_own_image) {
             $title = "'".get_the_title()."'";
         }
     }
-
+ 
     $button = "<div title='Diaspora*' id='diaspora-button-container'><a href=\"javascript:(function(){var url = ". $url . " ;var title = ". $title . ";   window.open('".plugin_dir_url(__FILE__)."new_window.php?url='+encodeURIComponent(url)+'&title='+encodeURIComponent(title),'post','location=no,links=no,scrollbars=no,toolbar=no,width=620,height=400')})()\">
 " . $button_box . "</a></div>";
 
@@ -221,6 +230,12 @@ function my_admin_init() {
         'value' => (isset($options_array['button_color']) ? $options_array['button_color'] : $button_defaults['button_color'])
         )
     );
+    add_settings_field( 'color', __( 'Just color', 'share-on-diaspora' ), array($this, 'my_text_input'), 'share_on_diaspora_options-button', 'section-button', array(
+        'name' => 'color',
+        'value' => ''
+        )
+    );
+
     add_settings_field( 'button_color_hover', __( 'Text and border color on mouse-over', 'share-on-diaspora' ), array($this, 'my_text_input'), 'share_on_diaspora_options-button', 'section-button', array(
         'name' => 'share-on-diaspora-settings[button_color_hover]',
         'value' => (isset($options_array['button_color_hover']) ? $options_array['button_color_hover'] : $button_defaults['button_color_hover'])
@@ -252,7 +267,10 @@ function my_admin_init() {
     add_settings_field( 'use_own_image', __( 'Use custom image', 'share-on-diaspora' ), array($this, 'use_image_callback'), 'share_on_diaspora_options-upload', 'section-upload' );
 
     add_settings_section( 'section-podlist', __( 'Pod properties', 'share-on-diaspora' ), array($this, 'section_two_callback'), 'share_on_diaspora_options-podlist' );
-    $podlist = file(plugin_dir_path( __FILE__ ).'pod_list_all.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+//    require_once(plugin_dir_path( __FILE__ ).'pod_list_all.php');
+
+	$podlist = file(plugin_dir_path( __FILE__ ).'pod_list_all.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+
     foreach ($podlist as $i) {
         add_settings_field( $i, $i, array($this, 'my_checkboxes'), 'share_on_diaspora_options-podlist', 'section-podlist', array('podname' => $i));
     }  
@@ -265,7 +283,7 @@ function section_one_callback() {
 function my_text_input( $args ) {
     $name = esc_attr( $args['name'] );
     $value = esc_attr( $args['value'] );
-    echo "<input type='text' name='$name' value='$value' /> ";
+    echo "<input type='text' class='color' name='$name' value='$value' /> ";
 }
 
 function my_radio_group( $args ) {
@@ -507,6 +525,25 @@ function i18n_init() {
     load_plugin_textdomain( 'share-on-diaspora', false, dirname( plugin_basename( __FILE__ ) ).'/i18n' );
 }
 
+/* This function will add "donate" link to main plugins page */
+function wppa_donate_link($links, $file) { 
+	if ( $file == plugin_basename(__FILE__) ) { 
+		$donate_link_usd = '<a target="_blank" title="Paypal" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=OpaJaap@OpaJaap.nl&item_name=WP-Photo-Album-Plus&item_number=Support-Open-Source&currency_code=USD&lc=US">Donate USD</a>'; 
+		$donate_link_eur = '<a target="_blank" title="Paypal" href="https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=OpaJaap@OpaJaap.nl&item_name=WP-Photo-Album-Plus&item_number=Support-Open-Source&currency_code=EUR&lc=US">Donate EUR</a>';
+		$docs_link = '<a target="_blank" href="http://wppa.opajaap.nl/" title="Docs & Demos" >Documentation and examples</a>';
+		
+		$links[] = $donate_link_usd . ' | ' . $donate_link_eur . ' | ' . $docs_link;  
+	} 
+	return $links; 
+}
+
+// Add settings link on plugin page
+function your_plugin_settings_link($links) { 
+  $settings_link = '<a href="options-general.php?page=share_on_diaspora_settings_page">' . __('Settings') . '</a>'; 
+  array_unshift($links, $settings_link); 
+  return $links; 
+}
+
 public function __construct() {
     add_action('plugins_loaded', array($this, 'i18n_init'));
     // Register style sheet.
@@ -515,6 +552,10 @@ public function __construct() {
     add_filter('the_content', array($this, 'diaspora_button_display') );
     add_action( 'admin_menu', array($this, 'share_on_diaspora_menu') );
     add_action( 'admin_init', array($this, 'my_admin_init') );
+    add_filter('plugin_row_meta', array($this, 'wppa_donate_link'), 10, 2);
+    $plugin = plugin_basename(__FILE__);
+    add_filter("plugin_action_links_$plugin", array( $this, 'your_plugin_settings_link') );
+
 } //end function
 } //end class
 } //end if clause
